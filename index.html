@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LED Matrix Display Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Load pixel fonts from Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&family=Pixelify+Sans&family=Silkscreen&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #2d3748;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4a5568;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #718096;
+        }
+        .control-panel label {
+            font-weight: 500;
+        }
+        .control-panel input, .control-panel select {
+            transition: all 0.2s ease-in-out;
+        }
+        .cost-display-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 0.5rem 1rem;
+            align-items: center;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white h-screen overflow-hidden relative">
+
+    <!-- Display Area -->
+    <div class="w-full h-full flex items-center justify-center p-4 lg:p-8">
+        <canvas id="led-display" class="bg-black border-4 border-gray-700 rounded-lg shadow-lg"></canvas>
+    </div>
+
+    <!-- Settings Button -->
+    <button id="open-settings-btn" class="absolute top-4 right-4 bg-gray-700 hover:bg-gray-600 text-white font-bold p-3 rounded-full shadow-lg transition duration-300 z-10">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-settings"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    </button>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+        <div class="control-panel w-full max-w-md bg-gray-800 p-6 shadow-2xl rounded-lg relative overflow-y-auto max-h-[90vh]">
+            <button id="close-settings-btn" class="absolute top-3 right-3 text-gray-400 hover:text-white transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            <h1 class="text-2xl font-bold mb-2 text-cyan-400">LED Simulator</h1>
+            <p class="text-sm text-gray-400 mb-6">Configure your display and preview messages in real-time.</p>
+
+            <!-- Text Input -->
+            <div class="mb-4">
+                <label for="text-input" class="block text-gray-300 text-sm mb-2">Message Text</label>
+                <textarea id="text-input" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500" rows="3">Hello World!</textarea>
+            </div>
+
+            <!-- Panel Configuration -->
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label for="panel-cols" class="block text-gray-300 text-sm mb-2">Panel Columns</label>
+                    <input type="number" id="panel-cols" value="2" min="1" max="10" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                </div>
+                <div>
+                    <label for="panel-rows" class="block text-gray-300 text-sm mb-2">Panel Rows</label>
+                    <input type="number" id="panel-rows" value="1" min="1" max="10" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                </div>
+            </div>
+
+            <!-- Panel Type -->
+            <div class="mb-4">
+                <label for="panel-type" class="block text-gray-300 text-sm mb-2">Panel Type (Resolution)</label>
+                <select id="panel-type" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    <option value="p10">P10 (32x16)</option>
+                    <option value="p5">P5 (64x32)</option>
+                </select>
+            </div>
+
+            <!-- Font Selection -->
+            <div class="mb-4">
+                <label for="font-select" class="block text-gray-300 text-sm mb-2">Font</label>
+                <select id="font-select" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    <option value="font5x7" selected>5x7 Segment</option>
+                    <option value="VT323">VT323</option>
+                    <option value="Press Start 2P">Press Start 2P</option>
+                    <option value="Pixelify Sans">Pixelify Sans</option>
+                    <option value="Silkscreen">Silkscreen</option>
+                </select>
+            </div>
+
+            <!-- Font Size & Color -->
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label for="font-size" class="block text-gray-300 text-sm mb-2">Font Size (px)</label>
+                    <input type="number" id="font-size" value="24" min="8" max="100" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-opacity">
+                </div>
+                <div>
+                    <label for="led-color" class="block text-gray-300 text-sm mb-2">LED Color</label>
+                    <input type="color" id="led-color" value="#FF0000" class="w-full h-10 p-1 bg-gray-700 border border-gray-600 rounded-md cursor-pointer">
+                </div>
+            </div>
+
+            <!-- Line Spacing -->
+            <div class="mb-4">
+                <label for="line-spacing" class="block text-gray-300 text-sm mb-2">Line Spacing (px)</label>
+                <input type="number" id="line-spacing" value="4" min="0" max="50" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+            </div>
+            
+            <!-- Display Mode -->
+            <div class="mb-4">
+                <label class="block text-gray-300 text-sm mb-2">Display Mode</label>
+                <div class="flex items-center space-x-4">
+                    <label class="flex items-center cursor-pointer">
+                        <input type="radio" name="display-mode" value="static" checked class="form-radio h-4 w-4 text-cyan-600 bg-gray-700 border-gray-600 focus:ring-cyan-500">
+                        <span class="ml-2 text-gray-300">Static</span>
+                    </label>
+                    <label class="flex items-center cursor-pointer">
+                        <input type="radio" name="display-mode" value="scroll" class="form-radio h-4 w-4 text-cyan-600 bg-gray-700 border-gray-600 focus:ring-cyan-500">
+                        <span class="ml-2 text-gray-300">Scroll</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Scroll Speed -->
+            <div id="scroll-speed-container" class="mb-6">
+                <label for="scroll-speed" class="block text-gray-300 text-sm mb-2">Scroll Speed</label>
+                <input type="number" id="scroll-speed" min="0.1" max="50" value="1" step="0.1" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+            </div>
+
+            <!-- Cost Calculation Section -->
+            <div class="border-t border-gray-600 pt-4 mt-6">
+                 <h2 class="text-xl font-bold mb-4 text-cyan-400">Cost Estimator</h2>
+                 <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label for="p10-cost" class="block text-gray-300 text-sm mb-2">P10 Unit Cost (MYR)</label>
+                        <input type="number" id="p10-cost" value="40" min="0" step="1" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    </div>
+                     <div>
+                        <label for="p5-cost" class="block text-gray-300 text-sm mb-2">P5 Unit Cost (MYR)</label>
+                        <input type="number" id="p5-cost" value="85" min="0" step="1" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    </div>
+                    <div>
+                        <label for="power-supply-cost" class="block text-gray-300 text-sm mb-2">Power Supply Cost (MYR)</label>
+                        <input type="number" id="power-supply-cost" value="150" min="0" step="10" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    </div>
+                    <div>
+                        <label for="driver-cost" class="block text-gray-300 text-sm mb-2">Driver Cost (MYR)</label>
+                        <input type="number" id="driver-cost" value="200" min="0" step="10" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    </div>
+                </div>
+
+                <div class="bg-gray-700 p-4 rounded-md space-y-2 text-gray-300 cost-display-grid">
+                    <span class="font-semibold">Panels:</span>
+                    <span id="cost-num-panels" class="text-right">2</span>
+                    <span class="font-semibold">Panel Subtotal:</span>
+                    <span id="cost-panel-subtotal" class="text-right">MYR 80.00</span>
+                    <div class="col-span-2 border-t border-gray-500 my-2"></div>
+                    <span class="font-bold text-lg text-white">Total Estimated Cost:</span>
+                    <span id="cost-total" class="font-bold text-lg text-cyan-400 text-right">MYR 430.00</span>
+                </div>
+            </div>
+
+
+            <!-- Export Button -->
+            <button id="export-png" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md transition duration-300 mt-6">
+                Export as PNG
+            </button>
+        </div>
+    </div>
+    
+
+    <script>
+    /**
+     * @license
+     * LED Matrix Display Simulator
+     *
+     * Copyright (c) 2025
+     * This software is released under the MIT License.
+     *
+     * A web-based tool to simulate text on configurable LED matrix panels.
+     * Ideal for sales demos and customer previews.
+     */
+    (function() {
+        // --- 1. CONSTANTS & DOM ELEMENTS ---
+        // This section caches all necessary DOM elements for performance and defines static configuration data.
+
+        const canvas = document.getElementById('led-display');
+        const ctx = canvas.getContext('2d');
+        const textInput = document.getElementById('text-input');
+        const panelColsInput = document.getElementById('panel-cols');
+        const panelRowsInput = document.getElementById('panel-rows');
+        const panelTypeSelect = document.getElementById('panel-type');
+        const fontSelect = document.getElementById('font-select');
+        const fontSizeInput = document.getElementById('font-size');
+        const ledColorInput = document.getElementById('led-color');
+        const lineSpacingInput = document.getElementById('line-spacing');
+        const displayModeRadios = document.querySelectorAll('input[name="display-mode"]');
+        const scrollSpeedInput = document.getElementById('scroll-speed');
+        const exportBtn = document.getElementById('export-png');
+        const scrollSpeedContainer = document.getElementById('scroll-speed-container');
+
+        // Modal elements
+        const settingsModal = document.getElementById('settings-modal');
+        const openSettingsBtn = document.getElementById('open-settings-btn');
+        const closeSettingsBtn = document.getElementById('close-settings-btn');
+        
+        // Cost calculation elements
+        const p10CostInput = document.getElementById('p10-cost');
+        const p5CostInput = document.getElementById('p5-cost');
+        const powerSupplyCostInput = document.getElementById('power-supply-cost');
+        const driverCostInput = document.getElementById('driver-cost');
+        const costNumPanelsEl = document.getElementById('cost-num-panels');
+        const costPanelSubtotalEl = document.getElementById('cost-panel-subtotal');
+        const costTotalEl = document.getElementById('cost-total');
+
+        // Bitmap font data for the 5x7 segment display. Each character is an array of 5 columns (bytes).
+        const font5x7 = {
+            'A': [0x7E, 0x11, 0x11, 0x11, 0x7E], 'B': [0x7F, 0x49, 0x49, 0x49, 0x36],
+            'C': [0x3E, 0x41, 0x41, 0x41, 0x22], 'D': [0x7F, 0x41, 0x41, 0x22, 0x1C],
+            'E': [0x7F, 0x49, 0x49, 0x41, 0x41], 'F': [0x7F, 0x09, 0x09, 0x01, 0x01],
+            'G': [0x3E, 0x41, 0x49, 0x49, 0x7A], 'H': [0x7F, 0x08, 0x08, 0x08, 0x7F],
+            'I': [0x00, 0x41, 0x7F, 0x41, 0x00], 'J': [0x20, 0x40, 0x41, 0x3F, 0x01],
+            'K': [0x7F, 0x08, 0x14, 0x22, 0x41], 'L': [0x7F, 0x40, 0x40, 0x40, 0x40],
+            'M': [0x7F, 0x02, 0x04, 0x02, 0x7F], 'N': [0x7F, 0x04, 0x08, 0x10, 0x7F],
+            'O': [0x3E, 0x41, 0x41, 0x41, 0x3E], 'P': [0x7F, 0x09, 0x09, 0x09, 0x06],
+            'Q': [0x3E, 0x41, 0x51, 0x21, 0x5E], 'R': [0x7F, 0x09, 0x19, 0x29, 0x46],
+            'S': [0x46, 0x49, 0x49, 0x49, 0x31], 'T': [0x01, 0x01, 0x7F, 0x01, 0x01],
+            'U': [0x3F, 0x40, 0x40, 0x40, 0x3F], 'V': [0x1F, 0x20, 0x40, 0x20, 0x1F],
+            'W': [0x3F, 0x40, 0x38, 0x40, 0x3F], 'X': [0x63, 0x14, 0x08, 0x14, 0x63],
+            'Y': [0x07, 0x08, 0x70, 0x08, 0x07], 'Z': [0x61, 0x51, 0x49, 0x45, 0x43],
+            '0': [0x3E, 0x51, 0x49, 0x45, 0x3E], '1': [0x00, 0x42, 0x7F, 0x40, 0x00],
+            '2': [0x42, 0x61, 0x51, 0x49, 0x46], '3': [0x21, 0x41, 0x45, 0x4B, 0x31],
+            '4': [0x18, 0x14, 0x12, 0x7F, 0x10], '5': [0x27, 0x45, 0x45, 0x45, 0x39],
+            '6': [0x3C, 0x4A, 0x49, 0x49, 0x30], '7': [0x01, 0x71, 0x09, 0x05, 0x03],
+            '8': [0x36, 0x49, 0x49, 0x49, 0x36], '9': [0x06, 0x49, 0x49, 0x29, 0x1E],
+            '!': [0x00, 0x00, 0x5F, 0x00, 0x00], '.': [0x00, 0x60, 0x60, 0x00, 0x00],
+            ' ': [0x00, 0x00, 0x00, 0x00, 0x00], '?': [0x02, 0x01, 0x51, 0x09, 0x06],
+            '-': [0x08, 0x08, 0x08, 0x08, 0x08], '°': [0x06, 0x09, 0x09, 0x06, 0x00],
+            '\'': [0x06, 0x09, 0x09, 0x06, 0x00],
+            charWidth: 5, charHeight: 7
+        };
+        const bitmapFonts = { font5x7 };
+
+        // Defines the properties of available panel types.
+        const panelTypes = {
+            'p10': { width: 32, height: 16, scale: 8 },
+            'p5': { width: 64, height: 32, scale: 4 }
+        };
+
+        // --- 2. APP STATE ---
+        let state = {};
+        let animationFrameId;
+
+        // --- 3. CORE LOGIC ---
+
+        /**
+         * Reads all values from the DOM controls and updates the central state object.
+         * This function is the single source of truth for the application's configuration.
+         */
+        function updateStateFromDOM() {
+            state = {
+                text: textInput.value,
+                panelCols: parseInt(panelColsInput.value) || 1,
+                panelRows: parseInt(panelRowsInput.value) || 1,
+                panelType: panelTypes[panelTypeSelect.value],
+                fontFamily: fontSelect.value,
+                fontSize: parseInt(fontSizeInput.value) || 24,
+                lineSpacing: parseInt(lineSpacingInput.value) || 0,
+                ledColor: ledColorInput.value,
+                displayMode: document.querySelector('input[name="display-mode"]:checked').value,
+                scrollSpeed: parseFloat(scrollSpeedInput.value) || 1,
+                p10Cost: parseFloat(p10CostInput.value) || 0,
+                p5Cost: parseFloat(p5CostInput.value) || 0,
+                powerSupplyCost: parseFloat(powerSupplyCostInput.value) || 0,
+                driverCost: parseFloat(driverCostInput.value) || 0,
+                ledOffColor: 'rgba(30, 0, 0, 0.5)',
+                // These are cached and recalculated only when settings change
+                scrollPosition: state.scrollPosition || 0,
+                textMetricsWidth: state.textMetricsWidth || 0,
+            };
+
+            // Conditionally show/hide UI elements based on the current state.
+            scrollSpeedContainer.style.display = state.displayMode === 'scroll' ? 'block' : 'none';
+            const isBitmap = !!bitmapFonts[state.fontFamily];
+            fontSizeInput.disabled = isBitmap;
+            fontSizeInput.parentElement.classList.toggle('opacity-50', isBitmap);
+        }
+        
+        /**
+         * Calculates and displays the total estimated cost based on the current configuration.
+         */
+        function updateCostCalculation() {
+            const numPanels = state.panelCols * state.panelRows;
+            const panelUnitCost = panelTypeSelect.value === 'p10' ? state.p10Cost : state.p5Cost;
+            const panelSubtotal = numPanels * panelUnitCost;
+            const totalCost = panelSubtotal + state.powerSupplyCost + state.driverCost;
+
+            const formatCurrency = (value) => `MYR ${value.toFixed(2)}`;
+
+            costNumPanelsEl.textContent = numPanels;
+            costPanelSubtotalEl.textContent = formatCurrency(panelSubtotal);
+            costTotalEl.textContent = formatCurrency(totalCost);
+        }
+
+        /**
+         * Calculates the pixel width of the longest line of text. This is a performance optimization,
+         * as it avoids recalculating this value on every animation frame.
+         * @returns {number} The width of the text in pixels.
+         */
+        function calculateTextMetrics() {
+            const lines = state.text.split('\n');
+            if (bitmapFonts[state.fontFamily]) {
+                const font = bitmapFonts[state.fontFamily];
+                const longestLine = lines.reduce((a, b) => a.length > b.length ? a : b, '');
+                return longestLine.length * (font.charWidth + 1);
+            } else {
+                // Use an offscreen canvas for accurate text measurement without affecting the main display.
+                const offscreenCtx = document.createElement('canvas').getContext('2d');
+                offscreenCtx.font = `${state.fontSize}px "${state.fontFamily}"`;
+                return Math.max(...lines.map(line => offscreenCtx.measureText(line).width));
+            }
+        }
+
+        /**
+         * Renders text using web fonts to an offscreen canvas and returns its pixel data.
+         * This allows us to map rendered text to the LED grid.
+         * @param {string} displayText - The text to render.
+         * @param {number} totalWidth - The width of the canvas.
+         * @param {number} totalHeight - The height of the canvas.
+         * @returns {ImageData} The pixel data of the rendered text.
+         */
+        function renderTextToImageData(displayText, totalWidth, totalHeight) {
+            const offscreenCanvas = document.createElement('canvas');
+            const offscreenCtx = offscreenCanvas.getContext('2d');
+            offscreenCanvas.width = totalWidth;
+            offscreenCanvas.height = totalHeight;
+
+            offscreenCtx.font = `${state.fontSize}px "${state.fontFamily}"`;
+            offscreenCtx.fillStyle = state.ledColor;
+            offscreenCtx.textBaseline = 'middle';
+
+            const lines = displayText.split('\n');
+            const lineHeight = state.fontSize + state.lineSpacing;
+            const totalTextHeight = lines.length * lineHeight - state.lineSpacing;
+            let y = (totalHeight - totalTextHeight) / 2 + state.fontSize / 2;
+
+            lines.forEach(line => {
+                const textMetrics = offscreenCtx.measureText(line);
+                const x = state.displayMode === 'static' 
+                    ? (totalWidth - textMetrics.width) / 2
+                    : state.scrollPosition;
+                offscreenCtx.fillText(line, x, y);
+                y += lineHeight;
+            });
+
+            return offscreenCtx.getImageData(0, 0, totalWidth, totalHeight);
+        }
+        
+        /**
+         * Populates a 2D boolean array (display buffer) based on the bitmap font data.
+         * @param {boolean[][]} buffer - The 2D array to populate.
+         * @param {number} displayWidth - The total pixel width of the display.
+         * @param {number} displayHeight - The total pixel height of the display.
+         */
+        function populateBufferWithBitmapFont(buffer, displayWidth, displayHeight) {
+            const font = bitmapFonts[state.fontFamily];
+            const lines = state.text.toUpperCase().split('\n');
+            const lineHeight = font.charHeight + state.lineSpacing;
+            const totalTextHeight = lines.length * lineHeight - state.lineSpacing;
+            
+            let currentY = Math.floor((displayHeight - totalTextHeight) / 2);
+
+            lines.forEach(line => {
+                const textWidth = line.length * (font.charWidth + 1) - 1;
+                const startX = state.displayMode === 'static'
+                    ? Math.floor((displayWidth - textWidth) / 2)
+                    : Math.floor(state.scrollPosition);
+
+                for (let i = 0; i < line.length; i++) {
+                    const charData = font[line[i]] || font['?'];
+                    for (let x = 0; x < font.charWidth; x++) {
+                        for (let y = 0; y < font.charHeight; y++) {
+                            // Bitwise operation to check if a pixel in the character column should be on.
+                            if ((charData[x] >> y) & 1) {
+                                const pixelX = startX + i * (font.charWidth + 1) + x;
+                                const pixelY = currentY + y;
+                                if (pixelX >= 0 && pixelX < displayWidth && pixelY >= 0 && pixelY < displayHeight) {
+                                    buffer[pixelY][pixelX] = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                currentY += lineHeight;
+            });
+        }
+
+        /**
+         * Populates a 2D boolean array from the rendered web font pixel data.
+         * @param {boolean[][]} buffer - The 2D array to populate.
+         * @param {number} displayWidth - The total pixel width of the display.
+         * @param {number} displayHeight - The total pixel height of the display.
+         */
+        function populateBufferWithWebFont(buffer, displayWidth, displayHeight) {
+            const imageData = renderTextToImageData(state.text, displayWidth, displayHeight);
+            const data = imageData.data;
+            for (let i = 3; i < data.length; i += 4) { // Iterate through alpha channel
+                if (data[i] > 128) { // If pixel is not transparent
+                    const pixelIndex = (i - 3) / 4;
+                    const y = Math.floor(pixelIndex / displayWidth);
+                    const x = pixelIndex % displayWidth;
+                    buffer[y][x] = true;
+                }
+            }
+        }
+
+        /**
+         * Main drawing function. It resizes the canvas, clears it, and renders the logical
+         * display buffer to the canvas as styled "LEDs".
+         */
+        function draw() {
+            const displayWidth = state.panelType.width * state.panelCols;
+            const displayHeight = state.panelType.height * state.panelRows;
+            const scale = state.panelType.scale;
+            const ledSize = Math.max(2, scale - 2);
+
+            canvas.width = displayWidth * scale;
+            canvas.height = displayHeight * scale;
+            
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Create a logical buffer of the display state (on/off).
+            const displayBuffer = Array(displayHeight).fill(null).map(() => Array(displayWidth).fill(false));
+
+            if (bitmapFonts[state.fontFamily]) {
+                populateBufferWithBitmapFont(displayBuffer, displayWidth, displayHeight);
+            } else {
+                populateBufferWithWebFont(displayBuffer, displayWidth, displayHeight);
+            }
+
+            // Render the buffer to the canvas.
+            ctx.fillStyle = state.ledColor;
+            const ledRadius = ledSize / 2;
+            for (let y = 0; y < displayHeight; y++) {
+                for (let x = 0; x < displayWidth; x++) {
+                    if (displayBuffer[y][x]) {
+                        ctx.beginPath();
+                        ctx.arc(x * scale + scale / 2, y * scale + scale / 2, ledRadius, 0, 2 * Math.PI);
+                        ctx.fill();
+                    }
+                }
+            }
+        }
+        
+        /**
+         * The animation loop, managed by requestAnimationFrame for smooth updates.
+         * It updates the scroll position and calls the draw function.
+         */
+        function animate() {
+            if (state.displayMode === 'scroll') {
+                state.scrollPosition -= state.scrollSpeed / 2;
+                const displayWidth = state.panelType.width * state.panelCols;
+                // Reset scroll position when text is fully off-screen.
+                if (state.scrollPosition < -state.textMetricsWidth) {
+                    state.scrollPosition = displayWidth;
+                }
+            }
+            draw();
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        /**
+         * Central handler for any setting change. It stops the current animation,
+         * updates the state, recalculates expensive metrics, and restarts the animation loop.
+         */
+        function handleSettingsChange() {
+            cancelAnimationFrame(animationFrameId);
+            updateStateFromDOM();
+            updateCostCalculation();
+            
+            // Recalculate and cache text width, which is an expensive operation.
+            state.textMetricsWidth = calculateTextMetrics();
+            const displayWidth = state.panelType.width * state.panelCols;
+            state.scrollPosition = displayWidth; // Reset scroll position on change.
+
+            animate(); // Start the new animation loop.
+        }
+
+        // --- 4. EVENT LISTENERS & INITIALIZATION ---
+
+        /**
+         * Initializes the application by setting up all event listeners.
+         */
+        function init() {
+            const controls = [
+                textInput, panelColsInput, panelRowsInput, panelTypeSelect,
+                fontSelect, fontSizeInput, lineSpacingInput, ledColorInput,
+                scrollSpeedInput, ...displayModeRadios, p10CostInput, p5CostInput, 
+                powerSupplyCostInput, driverCostInput
+            ];
+            
+            controls.forEach(control => {
+                // Use 'input' event for real-time updates on sliders, color pickers, etc.
+                const event = ['range', 'color', 'number', 'text'].includes(control.type) ? 'input' : 'change';
+                control.addEventListener(event, handleSettingsChange);
+            });
+
+            exportBtn.addEventListener('click', () => {
+                const link = document.createElement('a');
+                link.download = 'led-display-preview.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+
+            // Modal listeners
+            openSettingsBtn.addEventListener('click', () => settingsModal.classList.remove('hidden'));
+            closeSettingsBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
+            // Close modal if user clicks on the backdrop.
+            settingsModal.addEventListener('click', (e) => {
+                if (e.target === settingsModal) {
+                    settingsModal.classList.add('hidden');
+                }
+            });
+            
+            // Initial Draw on page load.
+            handleSettingsChange();
+        }
+
+        // Start the application.
+        init();
+
+    })();
+    </script>
+</body>
+</html>
+
